@@ -43,10 +43,14 @@ module.exports = function docker(container, dest) {
 		const rel = path.relative(file.base, file.path)
 		const destFile = path.join(dest, rel)
 
-		const proc = spawn('docker', ['exec', '-i', container, 'sh', '-c', `cat > ${destFile}`], {stdin: 'pipe'})
-		proc.on('close', code => done(code != 0 ? new Error(`Non-zero exit code: ${code}`) : null))
-		proc.on('error', e => done(e))
-		pipeBuffer(file.contents, proc.stdin, done)
+		spawn('docker', ['exec', '-i', container, 'mkdir', '-p', path.dirname(destFile)])
+		.on('error', e => done(e))
+		.on('close', () => {
+			const proc = spawn('docker', ['exec', '-i', container, 'sh', '-c', `cat > ${destFile}`], {stdin: 'pipe'})
+			proc.on('close', code => done(code != 0 ? new Error(`Non-zero exit code: ${code}`) : null))
+			proc.on('error', e => done(e))
+			pipeBuffer(file.contents, proc.stdin, done)
+		})
 	}, function end(callback) {
 		gutil.log('docker copy:', errors.length, 'errors:', errors.map(e => e.message).join(', '))
 		errors = 0
